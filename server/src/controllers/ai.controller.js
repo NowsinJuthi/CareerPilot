@@ -1,72 +1,48 @@
-const OpenAI = require("openai");
-const User = require("../models/User");
+const axios = require("axios");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// ============================
-// Career Recommendation AI
-// ============================
 const careerRecommendation = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const { text } = req.body;
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
+    if (!text) {
+      return res.status(400).json({
         success: false,
-        message: "User not found",
+        message: "Resume text is required",
       });
     }
 
     const prompt = `
-You are a professional AI career advisor.
+You are an expert career advisor AI.
 
-User Profile:
-- Name: ${user.fullName}
-- Education: ${user.education}
-- Skills: ${user.skills.join(", ")}
-- Interests: ${user.interests.join(", ")}
-- Career Goal: ${user.careerGoal}
+Analyze this resume and give:
+1. Skills
+2. Weaknesses
+3. Career suggestions
+4. ATS score (0-100)
 
-Task:
-1. Suggest top 5 career paths (with rating out of 5 stars)
-2. Provide learning roadmap step by step
-3. Identify skill gaps
-4. Suggest 3 job titles for each career path
-5. Keep response structured and easy to read
+Resume:
+${text}
+
+Return in simple text or JSON format.
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful AI career advisor.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+    const response = await axios.post("http://localhost:11434/api/generate", {
+      model: "llama3",
+      prompt: prompt,
+      stream: false,
     });
 
-    const aiResponse = completion.choices[0].message.content;
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: "Career recommendation generated successfully",
-      data: aiResponse,
+      data: response.data.response,
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("AI Error:", error.message);
 
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "AI service failed",
     });
   }
 };

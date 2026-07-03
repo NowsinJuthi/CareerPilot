@@ -1,52 +1,72 @@
-const OpenAI = require("openai");
-const pdfParse = require("pdf-parse");
 const fs = require("fs");
-const safeJsonParse = require("../utils/safeJson.js");
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-
-
-
-
+const axios = require("axios");
+const PDFParser = require("pdf2json");
 
 const analyzeResume = async (req, res) => {
   try {
-
-    // STEP 1: Get uploaded file
-    const file = req.file;
-
-    if (!file) {
+    if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "No resume file uploaded",
+        message: "No resume uploaded",
       });
     }
 
+    // ---------------- PDF TO TEXT ----------------
+    const pdfParser = new PDFParser();
 
-    const aiResponse = await callAI(file); 
+    const text = await new Promise((resolve, reject) => {
+      pdfParser.on("pdfParser_dataError", (err) => reject(err));
+      pdfParser.on("pdfParser_dataReady", () => {
+        const rawText = pdfParser.getRawTextContent();
+        resolve(rawText);
+      });
 
-    // STEP 3: SAFE JSON PARSE
-    const result = safeJsonParse(aiResponse);
+      pdfParser.loadPDF(req.file.path);
+    });
 
-    // STEP 4: RETURN SAFE OUTPUT
+    // ---------------- OLLAMA CALL ----------------
+    const response = await axios.post(
+      "http://localhost:11434/api/generate",
+      {
+        model: "llama3",
+        prompt: `
+You are an AI Resume Analyzer.
+
+Analyze this resume and return ONLY valid JSON.
+
+Resume:
+${text}
+
+Return format:
+{
+  "atsScore": 0,
+  "summary": "",
+  "strengths": [],
+  "weaknesses": [],
+  "suggestions": [],
+  "jobMatches": []
+}
+
+No explanation. Only JSON.
+        `,
+        stream: false,
+      }
+    );
+
+    const resultText = response.data.response;
+
     return res.json({
       success: true,
-      data: result,
+      data: JSON.parse(resultText),
     });
 
   } catch (error) {
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: "AI processing failed",
-      error: error.message,
+      message: error.message,
     });
   }
 };
 
-
-
-module.exports = {
-  analyzeResume,
-};
+module.exports = { analyzeResume };

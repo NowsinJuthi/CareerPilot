@@ -8,18 +8,12 @@ const {
   logoutUser,
 } = require("../controllers/auth.controller");
 
-const authMiddleware = require("../middleware/auth.middleware.js");
+const authMiddleware = require("../middleware/auth.middleware");
 
-// Register
 router.post("/register", registerUser);
-
-// Login
 router.post("/login", loginUser);
 
-// Get Current User (Protected)
 router.get("/me", authMiddleware, getMe);
-
-// Logout (Protected)
 router.post("/logout", authMiddleware, logoutUser);
 
 module.exports = router;

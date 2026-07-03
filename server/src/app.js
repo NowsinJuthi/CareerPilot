@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.routes");
 const aiRoutes = require("./routes/ai.routes.js");
 const resumeRoutes = require("./routes/resume.routes");
+const interviewRoutes = require("./routes/interview.routes");
 
 
 const app = express();
@@ -14,7 +15,11 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 
 
-app.use(cors());
+app.use(cors({
+    origin:"http://localhost:3000",
+    credentials:true
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -30,7 +35,7 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1/resume", resumeRoutes);
-
+app.use("/api/v1/interview", interviewRoutes);
 
 
 module.exports = app;

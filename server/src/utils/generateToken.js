@@ -4,9 +4,9 @@ const generateAccessToken = (userId) => {
   return jwt.sign(
     { id: userId },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRES || "15m" }
+    { expiresIn: "1d" }
   );
-};
+}
 
 const generateRefreshToken = (userId) => {
   return jwt.sign(
