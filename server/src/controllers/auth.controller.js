@@ -46,7 +46,7 @@ const registerUser = async (req, res) => {
     delete userData.password;
     delete userData.refreshToken;
 
-    // ✅ ACCESS TOKEN COOKIE
+    // cookies
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: false,
@@ -55,7 +55,6 @@ const registerUser = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    // ✅ REFRESH TOKEN COOKIE
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: false,
@@ -69,7 +68,10 @@ const registerUser = async (req, res) => {
       user: userData,
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -81,19 +83,13 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -106,37 +102,52 @@ const loginUser = async (req, res) => {
     delete userData.password;
     delete userData.refreshToken;
 
+    // 🔥 FIXED COOKIES
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: false,
       sameSite: "lax",
+      secure: false,
       path: "/",
-      maxAge: 24 * 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
       sameSite: "lax",
+      secure: false,
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json({
       success: true,
       user: userData,
     });
+
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
-
 // ---------------- GET ME ----------------
 const getMe = async (req, res) => {
-  return res.json({
-    success: true,
-    user: req.user,
-  });
+  try {
+    const user = await User.findById(req.user.id).select("-password -refreshToken");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 // ---------------- LOGOUT ----------------

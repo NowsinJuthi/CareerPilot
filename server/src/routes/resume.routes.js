@@ -5,11 +5,9 @@ const authMiddleware = require("../middleware/auth.middleware");
 const { analyzeResume } = require("../controllers/resume.controller");
 
 const multer = require("multer");
-
-// file upload config
 const upload = multer({ dest: "uploads/" });
 
-// Resume Analyzer Route
+// 🔥 PROTECTED ROUTE
 router.post(
   "/analyze",
   authMiddleware,
