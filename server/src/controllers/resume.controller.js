@@ -1,5 +1,6 @@
 const axios = require("axios");
-const PDFParser = require("pdf2json");
+const fs = require("fs");
+const pdf = require("pdf-parse");
 
 const analyzeResume = async (req, res) => {
   try {
@@ -10,58 +11,103 @@ const analyzeResume = async (req, res) => {
       });
     }
 
-    const pdfParser = new PDFParser();
+    // Read uploaded PDF
+    const dataBuffer = fs.readFileSync(req.file.path);
 
-    const text = await new Promise((resolve, reject) => {
-      pdfParser.on("pdfParser_dataError", reject);
-      pdfParser.on("pdfParser_dataReady", () => {
-        resolve(pdfParser.getRawTextContent());
+    // Extract text
+    const pdfData = await pdf(dataBuffer);
+
+    const text = pdfData.text.trim();
+
+    console.log("========== RESUME TEXT ==========");
+    console.log(text);
+    console.log("================================");
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not extract text from PDF",
       });
+    }
 
-      pdfParser.loadPDF(req.file.path);
-    });
+    const prompt = `
+You are an expert ATS Resume Reviewer and Career Coach.
+
+Analyze this resume carefully.
+
+Return ONLY valid JSON.
+
+{
+  "atsScore": 0,
+  "summary": "",
+  "strengths": [],
+  "weaknesses": [],
+  "suggestions": [],
+  "careerRecommendations": [],
+  "recommendedSkills": [],
+  "recommendedJobs": [],
+  "roadmap": []
+}
+
+Resume:
+
+${text}
+`;
 
     const response = await axios.post(
       "http://localhost:11434/api/generate",
       {
         model: "llama3",
-        prompt: `
-Analyze this resume and return ONLY JSON:
-
-${text}
-
-Return:
-{
-  "atsScore": 0,
-  "summary": "",
-  "skills": [],
-  "weaknesses": [],
-  "suggestions": []
-}
-        `,
+        prompt,
         stream: false,
       }
     );
 
+    console.log("========== OLLAMA ==========");
+    console.log(response.data.response);
+
     let result;
 
     try {
-      result = JSON.parse(response.data.response);
-    } catch {
-      result = { raw: response.data.response };
+      const cleanJson = response.data.response
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      result = JSON.parse(cleanJson);
+    } catch (err) {
+      result = {
+        atsScore: 0,
+        summary: response.data.response,
+        strengths: [],
+        weaknesses: [],
+        suggestions: [],
+        careerRecommendations: [],
+        recommendedSkills: [],
+        recommendedJobs: [],
+        roadmap: [],
+      };
     }
 
     return res.json({
       success: true,
       data: result,
+      resumeText: text,
     });
-
   } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
+  } finally {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
   }
 };
 
-module.exports = { analyzeResume };
+module.exports = {
+  analyzeResume,
+};

@@ -119,6 +119,8 @@ const loginUser = async (req, res) => {
 
     return res.json({
       success: true,
+      accessToken,
+      refreshToken,
       user: userData,
     });
 

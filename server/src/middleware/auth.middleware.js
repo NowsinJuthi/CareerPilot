@@ -3,8 +3,6 @@ const jwt = require("jsonwebtoken");
 module.exports = (req, res, next) => {
   const token = req.cookies?.accessToken;
 
-  console.log("COOKIES RECEIVED:", req.cookies);
-
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -13,13 +11,20 @@ module.exports = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id: userId }
+    const decoded = jwt.verify(
+      token,
+      process.env.ACCESS_TOKEN_SECRET
+    );
+
+    req.user = decoded;
+
     next();
   } catch (err) {
+    console.error(err);
+
     return res.status(401).json({
       success: false,
-      message: "Invalid token",
+      message: err.message,
     });
   }
 };
