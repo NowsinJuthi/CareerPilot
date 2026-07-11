@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/v1/auth";
+const API = "/auth";
 import api from "@/lib/axios";
 
 

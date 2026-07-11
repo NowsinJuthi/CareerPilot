@@ -16,8 +16,9 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 
 app.use(cors({
-    origin:"http://localhost:3000",
-    credentials:true
+    origin: ["http://localhost:3000",
+    "https://careerpilot.vercel.app"],
+    credentials: true
 }));
 
 app.use(express.json());
