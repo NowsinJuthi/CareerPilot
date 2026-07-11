@@ -4,14 +4,18 @@ const router = express.Router();
 const {
   startInterview,
   continueInterview,
+  getCurrentInterview,
+  finishInterview,
 } = require("../controllers/interview.controller");
 
 const authMiddleware = require("../middleware/auth.middleware");
 
-// Start interview
 router.post("/start", authMiddleware, startInterview);
 
-// Continue interview
-router.post("/continue", authMiddleware, continueInterview);
+router.post("/answer", authMiddleware, continueInterview);
+
+router.get("/current", authMiddleware, getCurrentInterview);
+
+router.post("/finish", authMiddleware, finishInterview);
 
 module.exports = router;

@@ -5,9 +5,15 @@ const authMiddleware = require("../middleware/auth.middleware");
 
 const {
   careerRecommendation,
+  getCareerRecommendation,
 } = require("../controllers/ai.controller");
 
-// AI Career Recommendation (User + Admin)
+router.get(
+  "/career-recommendation",
+  authMiddleware,
+  getCareerRecommendation
+);
+
 router.post(
   "/career-recommendation",
   authMiddleware,

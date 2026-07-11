@@ -1,41 +1,31 @@
+const interviewService = require("../services/interview.service");
+const Interview = require("../models/interview.model");
 
-
-// Start Interview (First Question)
+// START INTERVIEW
 const startInterview = async (req, res) => {
   try {
     const { role } = req.body;
 
-    const prompt = `
-You are a professional AI interviewer.
+    if (!role || role.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Role is required",
+      });
+    }
 
-Start a mock interview for the role: ${role}.
+    const result = await interviewService.startInterview(
+      req.user.id,
+      role
+    );
 
-Give ONLY the first interview question.
-
-No explanation, no markdown.
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a strict but fair interviewer.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const question = completion.choices[0].message.content;
-
-    return res.json({
+    return res.status(200).json({
       success: true,
-      question,
+      interviewId: result.interviewId,
+      question: result.question,
     });
   } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -43,56 +33,113 @@ No explanation, no markdown.
   }
 };
 
-// Continue Interview (AI Feedback + Next Question)
+// CONTINUE INTERVIEW
 const continueInterview = async (req, res) => {
   try {
-    const { role, history } = req.body;
+    const { interviewId, answer } = req.body;
 
-    const prompt = `
-You are conducting a mock interview for: ${role}.
+    if (!interviewId) {
+      return res.status(400).json({
+        success: false,
+        message: "Interview ID is required",
+      });
+    }
 
-Conversation history:
-${JSON.stringify(history)}
+    if (!answer || answer.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Answer is required",
+      });
+    }
 
-Rules:
-1. Give feedback on last answer
-2. Then ask NEXT question
-3. Keep it short
-4. Be professional
+    const result =
+      await interviewService.continueInterview(
+        interviewId,
+        answer
+      );
 
-Return JSON only:
-
-{
-  "feedback": "",
-  "nextQuestion": ""
-}
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional interview coach.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const result = JSON.parse(
-      completion.choices[0].message.content
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-    );
-
-    return res.json({
+    return res.status(200).json({
       success: true,
       data: result,
     });
   } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET CURRENT INTERVIEW
+const getCurrentInterview = async (req, res) => {
+  try {
+    const interview = await Interview.findOne({
+      user: req.user.id,
+      status: "in_progress",
+    });
+
+    if (!interview) {
+      return res.status(404).json({
+        success: false,
+        message: "No active interview found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      interview,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// FINISH INTERVIEW
+const finishInterview = async (req, res) => {
+  try {
+    const { interviewId } = req.body;
+
+    const interview =
+      await Interview.findById(interviewId);
+
+    if (!interview) {
+      return res.status(404).json({
+        success: false,
+        message: "Interview not found",
+      });
+    }
+
+    interview.status = "completed";
+    interview.completedAt = new Date();
+
+    const total = interview.questions.reduce(
+      (sum, q) => sum + q.score,
+      0
+    );
+
+    interview.overallScore = Number(
+      (
+        total /
+        interview.questions.length
+      ).toFixed(1)
+    );
+
+    await interview.save();
+
+    return res.status(200).json({
+      success: true,
+      interview,
+    });
+  } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -103,4 +150,6 @@ Return JSON only:
 module.exports = {
   startInterview,
   continueInterview,
+  getCurrentInterview,
+  finishInterview,
 };

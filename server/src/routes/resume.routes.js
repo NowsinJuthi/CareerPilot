@@ -1,20 +1,24 @@
 const express = require("express");
-const multer = require("multer");
-
 const router = express.Router();
 
 const authMiddleware = require("../middleware/auth.middleware");
-const { analyzeResume } = require("../controllers/resume.controller");
-
-const upload = multer({
-  dest: "uploads/",
-});
+const upload = require("../middleware/upload.middleware");
+const {
+  analyzeResume,
+  getResumeAnalysis,
+} = require("../controllers/resume.controller");
 
 router.post(
   "/analyze",
   authMiddleware,
   upload.single("resume"),
   analyzeResume
+);
+
+router.get(
+  "/analysis",
+  authMiddleware,
+  getResumeAnalysis
 );
 
 module.exports = router;

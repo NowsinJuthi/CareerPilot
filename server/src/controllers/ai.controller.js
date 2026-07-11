@@ -1,52 +1,133 @@
 const axios = require("axios");
+const User = require("../models/User");
+const safeJsonParse = require("../utils/safeJsonParse");
 
 const careerRecommendation = async (req, res) => {
   try {
-    const { text } = req.body;
+    const user = await User.findById(req.user.id);
 
-    if (!text) {
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.resumeText) {
       return res.status(400).json({
         success: false,
-        message: "Resume text is required",
+        message: "Please analyze your resume first.",
       });
     }
 
     const prompt = `
-You are an expert career advisor AI.
+You are an expert AI Career Coach.
 
-Analyze this resume and give:
-1. Skills
-2. Weaknesses
-3. Career suggestions
-4. ATS score (0-100)
+Analyze the resume.
+
+Return ONLY valid JSON.
+
+Do not explain.
+Do not use markdown.
+Do not use code fences.
+
+Return exactly this schema:
+
+{
+  "careerPaths":[
+    {
+      "name":"",
+      "rating":0,
+      "description":"",
+      "jobs":[],
+      "salaryRange":"",
+      "futureDemand":"",
+      "skillGaps":[],
+      "recommendedSkills":[],
+      "roadmap":[
+        {
+          "title":"",
+          "duration":"",
+          "description":""
+        }
+      ]
+    }
+  ]
+}
 
 Resume:
-${text}
 
-Return in simple text or JSON format.
+${user.resumeText}
 `;
 
-    const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "llama3",
-      prompt: prompt,
-      stream: false,
-    });
+    const response = await axios.post(
+      "http://localhost:11434/api/generate",
+      {
+        model: "llama3",
+        prompt,
+        format: "json",
+        stream: false,
+        options: {
+          temperature: 0,
+        },
+      }
+    );
+
+    const result =
+      safeJsonParse(response.data.response) || {
+        careerPaths: [],
+      };
+
+    await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        careerRecommendation: result,
+      },
+      {
+        new: true,
+      }
+    );
 
     return res.json({
       success: true,
-      data: response.data.response,
+      data: result,
     });
 
+
   } catch (error) {
-    console.error("AI Error:", error.message);
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "AI service failed",
+      message: error.message,
     });
   }
 };
 
+
+const getCareerRecommendation = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select(
+      "careerRecommendation"
+    );
+
+    return res.json({
+      success: true,
+      data: user?.careerRecommendation || null,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   careerRecommendation,
+  getCareerRecommendation,
 };

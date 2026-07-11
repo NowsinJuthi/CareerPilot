@@ -86,6 +86,18 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    resumeText: {
+      type: String,
+      default: "",
+    },
+    resumeAnalysis: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    careerRecommendation: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     aiCredits: {
       type: Number,
       default: 20,
